@@ -28,33 +28,25 @@ app.get('/webhook', (req, res) => {
     let token = req.query['hub.verify_token'];
     let challenge = req.query['hub.challenge'];
 
+    console.log("--- Nisy requête GET tao amin'ny /webhook ---");
+    console.log("Mode avy amin'ny FB:", mode);
+    console.log("Token avy amin'ny FB:", token);
+    console.log("Token fantatry ny Server-nao:", VERIFY_TOKEN);
+
     if (mode && token) {
         if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-            console.log('WEBHOOK VERIFIED');
+            console.log('=> FAHOMBIAZANA: WEBHOOK VERIFIED!');
             res.status(200).send(challenge);
         } else {
+            console.log('=> TSY NETY: Tsy mitovy ny token nalefan\'ny FB sy ny an\'ny Server');
             res.sendStatus(403);
         }
-    }
-});
-
-// 2. Fandraisana hafatra avy amin'ny mpampiasa
-app.post('/webhook', (req, res) => {
-    let body = req.body;
-
-    if (body.object === 'page') {
-        body.entry.forEach(function(entry) {
-            let webhook_event = entry.messaging[0];
-            console.log(webhook_event);
-            
-            // Eto no apetraka ny code mampifandray ilay webhook_event amin'ny qaDatabase
-            // ary mandefa ny valiny miverina any amin'ny Messenger API.
-        });
-        res.status(200).send('EVENT_RECEIVED');
     } else {
-        res.sendStatus(404);
+        console.log('=> TSY NETY: Tsy misy mode na token');
+        res.status(400).send("Bad Request");
     }
 });
+
 
 // ---------------------------------------------------------
 // API HO AN'NY ADMIN PANEL
