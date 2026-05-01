@@ -1,15 +1,14 @@
 {
   "name": "nexus-bot",
   "version": "1.0.0",
-  "description": "WhatsApp Bot NEXUS by mirianot Malaza",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.6.0",
+    "@whiskeysockets/baileys": "^6.7.7",
     "@hapi/boom": "^10.0.1",
-    "pino": "^8.14.1",
+    "pino": "^9.1.0",
     "qrcode-terminal": "^0.12.0"
   },
   "engines": {
