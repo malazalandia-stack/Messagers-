@@ -1,7 +1,7 @@
 {
   "name": "nexus-bot",
   "version": "1.0.0",
-  "description": "NEXUS Bot for Railway with Pairing Code",
+  "description": "WhatsApp Bot NEXUS by mirianot Malaza",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
