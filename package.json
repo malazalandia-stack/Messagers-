@@ -1,15 +1,30 @@
 {
-  "name": "messenger-chatbot-admin",
+  "name": "nexus-bot-whatsapp",
   "version": "1.0.0",
-  "description": "Chatbot Messenger avec interface admin in-memory",
-  "main": "server.js",
+  "description": "WhatsApp Bot NEXUS miaraka amin'ny Anti-Link sy Welcome Message",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "nexus",
+    "automation"
+  ],
+  "author": "mirianot Malaza",
+  "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.20.2",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "request": "^2.88.2"
+    "@whiskeysockets/baileys": "^6.7.7",
+    "@hapi/boom": "^10.0.1",
+    "pino": "^9.1.0",
+    "pino-pretty": "^11.0.0",
+    "qrcode-terminal": "^0.12.0",
+    "link-preview-js": "^3.0.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
