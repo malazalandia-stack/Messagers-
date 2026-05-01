@@ -2,36 +2,45 @@ const {
     default: makeWASocket,
     useMultiFileAuthState,
     DisconnectReason,
-    delay,
+    fetchLatestBaileysVersion,
     jidDecode
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
 
-// Tehirizina eto vonjimaika ireo nanao fahadisoana (Anti-Link Tracker)
+// Tehirizina ny mpaniratsira sy ny blacklist
 const warnStorage = new Map();
 const blackList = new Set();
 
 async function startNexusBot() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
+    const { version } = await fetchLatestBaileysVersion();
 
     const sock = makeWASocket({
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: false, // Pairing code no ampiasaina
+        printQRInTerminal: false,
         auth: state,
+        version,
         browser: ["Ubuntu", "Chrome", "20.0.04"]
     });
 
-    // --- PAIRING CODE LOGIC ---
+    // PAIRING CODE LOGIC - Namboarina mba tsy hisy error
     if (!sock.authState.creds.registered) {
         const phoneNumber = "261323911654"; 
         setTimeout(async () => {
-            let code = await sock.requestPairingCode(phoneNumber);
-            console.log(`\n--- PAIRING CODE NEXUS ---`);
-            console.log(`Kodia ampiasaina: ${code}`);
-            console.log(`--------------------------\n`);
-        }, 3000);
+            try {
+                let code = await sock.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(`\n==================================`);
+                console.log(`KODIA PAIRING NEXUS: ${code}`);
+                console.log(`==================================\n`);
+            } catch (error) {
+                console.error("Fahadisoana tamin'ny pairing code:", error);
+            }
+        }, 6000); // 6 segondra mba hahazoana antoka fa vonona ny socket
     }
+
+    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect } = update;
@@ -39,13 +48,11 @@ async function startNexusBot() {
             const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) startNexusBot();
         } else if (connection === 'open') {
-            console.log('NEXUS Bot efa mandeha soa aman-tsara!');
+            console.log('NEXUS Bot efa mandeha soa aman-tsara ao amin'ny Railway!');
         }
     });
 
-    sock.ev.on('creds.update', saveCreds);
-
-    // 1. MIARAHABA OLONA VAOVAO (Welcome Message)
+    // 1. WELCOME MESSAGE (Olona vaovao)
     sock.ev.on('group-participants.update', async (anu) => {
         if (anu.action === 'add') {
             const welcomeMsg = `Miarahaba anao tonga soa ato amin'ny vondrona NEXUS tompoko! ✨\n\n` +
@@ -59,53 +66,46 @@ async function startNexusBot() {
         }
     });
 
-    // 2. ANTI-LINK SY FILTRAGE (Advanced)
+    // 2. ANTI-LINK & AUTO-KICK (Advanced)
     sock.ev.on('messages.upsert', async (chat) => {
         const msg = chat.messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
         const remoteJid = msg.key.remoteJid;
+        const isGroup = remoteJid.endsWith('@g.us');
+        if (!isGroup) return;
+
         const participant = msg.key.participant || remoteJid;
         const text = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
 
-        // Hijery raha misy rohy (Link detection)
+        // Sivana: Vercel sy Google Drive ihany no azo alefa
         const containsLink = /(https?:\/\/[^\s]+)/g.test(text);
-        const isAllowedDomain = text.includes("vercel.app") || text.includes("drive.google.com");
+        const isAllowed = text.includes("vercel.app") || text.includes("drive.google.com");
 
-        if (containsLink && !isAllowedDomain) {
-            // A. Check raha efa ao anaty Blacklist (raha tafiditra tamin'ny fomba hafa)
-            if (blackList.has(participant)) {
-                await sock.groupParticipantsUpdate(remoteJid, [participant], "remove");
-                return;
-            }
-
-            // B. Hamafa ny message avy hatrany
+        if (containsLink && !isAllowed) {
+            // Fafana ny message avy hatrany
             await sock.sendMessage(remoteJid, { delete: msg.key });
 
-            // C. Tantana ny fampitandremana (Warning System)
             if (!warnStorage.has(participant)) {
                 warnStorage.set(participant, 1);
                 await sock.sendMessage(remoteJid, { 
-                    text: `⚠️ Fampitandremana voalohany @${participant.split('@')[0]}!\nVoarara ny mandefa rohy hafa ankoatry ny Vercel sy Google Drive. Hesorina ianao raha mamerina izany.`,
+                    text: `⚠️ @${participant.split('@')[0]}, voarara ny mandefa rohy ato. Fampitandremana voalohany ity.`,
                     mentions: [participant]
                 });
             } else {
-                // D. Action faharoa: Kick sy Blacklist
+                // Kick sy Blacklist
                 await sock.sendMessage(remoteJid, { text: `🚫 Efa nampitandremana ianao @${participant.split('@')[0]}. Veloma!`, mentions: [participant] });
-                
-                blackList.add(participant); // Ampidirina anaty lisitra voasakana
+                blackList.add(participant);
                 await sock.groupParticipantsUpdate(remoteJid, [participant], "remove");
-                warnStorage.delete(participant);
             }
         }
     });
 
-    // 3. BLACKLIST ENFORCEMENT (Sakana tsy hiditra intsony)
+    // 3. BLACKLIST ENFORCEMENT (Tsy mahazo miverina)
     sock.ev.on('group-participants.update', async (anu) => {
         if (anu.action === 'add') {
             for (let user of anu.participants) {
                 if (blackList.has(user)) {
-                    await sock.sendMessage(anu.id, { text: `Fampahafantarana: Ny mpikambana ${user.split('@')[0]} dia ao anaty lisitra mainty ary nesorina ho azy.`, mentions: [user] });
                     await sock.groupParticipantsUpdate(anu.id, [user], "remove");
                 }
             }
