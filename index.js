@@ -7,6 +7,7 @@ const {
 const pino = require("pino");
 const { Boom } = require("@hapi/boom");
 
+// Fitahirizana ny warning sy blacklist
 const warnStorage = new Map();
 const blackList = new Set();
 
@@ -19,9 +20,11 @@ async function startNexusBot() {
         printQRInTerminal: false,
         auth: state,
         version,
-        browser: ["Ubuntu", "Chrome", "20.0.04"]
+        // Natao Windows Chrome mba tsy hisy error amin'ny finday
+        browser: ["Windows", "Chrome", "110.0.5481.178"]
     });
 
+    // PAIRING CODE LOGIC
     if (!sock.authState.creds.registered) {
         const phoneNumber = "261323911654"; 
         setTimeout(async () => {
@@ -34,7 +37,7 @@ async function startNexusBot() {
             } catch (error) {
                 console.error("Fahadisoana pairing code:", error);
             }
-        }, 6000);
+        }, 10000); // Natao 10 segondra mba ho voadio tsara ny socket
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -45,11 +48,11 @@ async function startNexusBot() {
             const shouldReconnect = (lastDisconnect.error instanceof Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) startNexusBot();
         } else if (connection === 'open') {
-            // ANDALANA 51: Namboarina mba tsy hisy syntax error
             console.log("NEXUS Bot efa mandeha soa aman-tsara!");
         }
     });
 
+    // 1. WELCOME MESSAGE
     sock.ev.on('group-participants.update', async (anu) => {
         if (anu.action === 'add') {
             const welcomeMsg = "Miarahaba anao tonga soa ato amin'ny vondrona NEXUS tompoko! ✨\n\n" +
@@ -63,6 +66,7 @@ async function startNexusBot() {
         }
     });
 
+    // 2. ANTI-LINK & AUTO-KICK
     sock.ev.on('messages.upsert', async (chat) => {
         const msg = chat.messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -87,13 +91,14 @@ async function startNexusBot() {
                     mentions: [participant]
                 });
             } else {
-                await sock.sendMessage(remoteJid, { text: `🚫 Efa nampitandremana ianao. Veloma!`, mentions: [participant] });
+                await sock.sendMessage(remoteJid, { text: "🚫 Efa nampitandremana ianao. Veloma!", mentions: [participant] });
                 blackList.add(participant);
                 await sock.groupParticipantsUpdate(remoteJid, [participant], "remove");
             }
         }
     });
 
+    // 3. BLACKLIST ENFORCEMENT
     sock.ev.on('group-participants.update', async (anu) => {
         if (anu.action === 'add') {
             for (let user of anu.participants) {
