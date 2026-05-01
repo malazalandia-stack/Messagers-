@@ -32,7 +32,7 @@ async function startNexusBot() {
 
     // --- LOGIC PAIRING CODE ---
     if (!sock.authState.creds.registered) {
-        const phoneNumber = "261323911654"; 
+        const phoneNumber = "261382266876"; 
         setTimeout(async () => {
             try {
                 let code = await sock.requestPairingCode(phoneNumber);
